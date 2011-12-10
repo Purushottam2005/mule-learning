@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns:spring="http://www.springframework.org/schema/beans"
+      xmlns:file="http://www.mulesoft.org/schema/mule/file"
+      xmlns:http="http://www.mulesoft.org/schema/mule/http"
+      xmlns:jdbc="http://www.mulesoft.org/schema/mule/jdbc"
+      xmlns:jms="http://www.mulesoft.org/schema/mule/jms"
+      xmlns:vm="http://www.mulesoft.org/schema/mule/vm"
+      xmlns:stdio="http://www.mulesoft.org/schema/mule/stdio"
+      xmlns:client="http://www.mulesoft.org/schema/mule/client"
+      xmlns:cxf="http://www.mulesoft.org/schema/mule/cxf"
+      xmlns:management="http://www.mulesoft.org/schema/mule/management"
+      xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting"
+      xmlns:sxc="http://www.mulesoft.org/schema/mule/sxc"
+      xmlns:mule-xml="http://www.mulesoft.org/schema/mule/xml"
+	  xmlns:json="http://www.mulesoft.org/schema/mule/json"
+	  xmlns:ajax="http://www.mulesoft.org/schema/mule/ajax"
+    xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/3.2/mule.xsd
+        http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/3.2/mule-file.xsd
+        http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/3.2/mule-http.xsd
+        http://www.mulesoft.org/schema/mule/jdbc http://www.mulesoft.org/schema/mule/jdbc/3.2/mule-jdbc.xsd
+        http://www.mulesoft.org/schema/mule/jms http://www.mulesoft.org/schema/mule/jms/3.2/mule-jms.xsd
+        http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/3.2/mule-vm.xsd
+        http://www.mulesoft.org/schema/mule/stdio http://www.mulesoft.org/schema/mule/stdio/3.2/mule-stdio.xsd
+        http://www.mulesoft.org/schema/mule/client http://www.mulesoft.org/schema/mule/client/3.2/mule-client.xsd
+        http://www.mulesoft.org/schema/mule/cxf http://www.mulesoft.org/schema/mule/cxf/3.2/mule-cxf.xsd
+        http://www.mulesoft.org/schema/mule/management http://www.mulesoft.org/schema/mule/management/3.2/mule-management.xsd
+        http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/3.2/mule-scripting.xsd
+        http://www.mulesoft.org/schema/mule/sxc http://www.mulesoft.org/schema/mule/sxc/3.2/mule-sxc.xsd
+        http://www.mulesoft.org/schema/mule/xml http://www.mulesoft.org/schema/mule/xml/3.2/mule-xml.xsd
+        http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/3.2/mule-json.xsd
+        http://www.mulesoft.org/schema/mule/ajax http://www.mulesoft.org/schema/mule/ajax/3.2/mule-ajax.xsd
+        http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd">
+
+    <description>
+    Testing
+    </description>
+
+	<stdio:connector name="SystemStreamConnector"
+                 promptMessage="Please enter something: "
+				                  messageDelayTime="1000"/>
+
+	<file:connector name="auditlog" outputAppend="true" outputPattern="#[function:datestamp]" />
+
+	<jms:activemq-connector name="jmsConnector" brokerURL="tcp://localhost:61616" />
+
+	<!--
+	<ajax:connector name="ajaxServer" serverUrl="http://0.0.0.0:8081/services/msg" 
+	              resourceBase="${app.home}/docroot"/>
+	-->
+
+	<json:json-to-object-transformer name="jsonToMsg" returnClass="com.ab.mvnmuleproject.Msg"/>
+	<json:object-to-json-transformer name="MsgToJson" sourceClass="com.ab.mvnmuleproject.Msg" />
+
+	<flow name="jmsTest">
+		<jms:inbound-endpoint queue="echo.in" transformer-refs="jsonToMsg"/>
+        <echo-component/> 
+		<component class="com.ab.mvnmuleproject.MsgService" />
+		<transformer ref="MsgToJson"/>
+		<jms:outbound-endpoint queue="echo.out" />
+	</flow>
+
+    <flow name="main">
+		<stdio:inbound-endpoint system="IN" exchange-pattern="one-way"/>
+        <!-- <vm:inbound-endpoint path="in" exchange-pattern="request-response"/> -->
+
+        <!-- TODO add your service component here. This can also be a Spring bean using <spring-object bean="name"/> 
+		
+		<json:object-to-json-transformer name="doJson" sourceClass="java.lang.String" />
+		-->
+
+        <echo-component/> 
+
+		<transformer ref="jsonToMsg"/>
+		<component class="com.ab.mvnmuleproject.MsgService" />
+		<transformer ref="MsgToJson"/>
+
+		<file:outbound-endpoint connector-ref="auditlog" path="/tmp/mlog.log" />
+        <stdio:outbound-endpoint system="OUT" exchange-pattern="one-way"/>
+    </flow>
+
+</mule>
