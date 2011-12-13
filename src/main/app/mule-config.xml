@@ -34,13 +34,10 @@
         http://www.mulesoft.org/schema/mule/ajax http://www.mulesoft.org/schema/mule/ajax/3.2/mule-ajax.xsd
         http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd">
 
-    <description>
-    Testing
-    </description>
+    <description>Testing</description>
 
-	<stdio:connector name="SystemStreamConnector"
-                 promptMessage="Please enter something: "
-				                  messageDelayTime="1000"/>
+	<stdio:connector name="SystemStreamConnector" promptMessage="Please enter something: "
+		messageDelayTime="1000"/>
 
 	<file:connector name="auditlog" outputAppend="true" outputPattern="#[function:datestamp]" />
 
@@ -56,27 +53,30 @@
 
 	<flow name="jmsTest">
 		<jms:inbound-endpoint queue="echo.in" transformer-refs="jsonToMsg"/>
-        <echo-component/> 
-		<component class="com.ab.mvnmuleproject.MsgService" />
+		<enricher target="#[header:statusIs]">
+			<vm:outbound-endpoint path="statusLookup" exchange-pattern="request-response" />
+		</enricher>
+        <log-component/> 
+		<!-- only process through component if statusIs == 'GOOD' -->
+		<message-property-filter pattern="statusIs=GOOD"/>
+		<component class="com.ab.mvnmuleproject.MsgService"/>
 		<transformer ref="MsgToJson"/>
 		<jms:outbound-endpoint queue="echo.out" />
 	</flow>
 
+	<!-- Sample flow to determine if a Msg is "GOOD" (count == even) or "BAD" (odd) -->
+	<flow name="statusLookup">
+		<vm:inbound-endpoint path="statusLookup" exchange-pattern="request-response" />
+		<log-component/>
+		<component class="com.ab.mvnmuleproject.StatusLookup" />
+	</flow>
+
     <flow name="main">
 		<stdio:inbound-endpoint system="IN" exchange-pattern="one-way"/>
-        <!-- <vm:inbound-endpoint path="in" exchange-pattern="request-response"/> -->
-
-        <!-- TODO add your service component here. This can also be a Spring bean using <spring-object bean="name"/> 
-		
-		<json:object-to-json-transformer name="doJson" sourceClass="java.lang.String" />
-		-->
-
-        <echo-component/> 
-
+        <log-component/> 
 		<transformer ref="jsonToMsg"/>
 		<component class="com.ab.mvnmuleproject.MsgService" />
 		<transformer ref="MsgToJson"/>
-
 		<file:outbound-endpoint connector-ref="auditlog" path="/tmp/mlog.log" />
         <stdio:outbound-endpoint system="OUT" exchange-pattern="one-way"/>
     </flow>
