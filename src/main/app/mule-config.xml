@@ -56,7 +56,7 @@
 		<enricher target="#[header:statusIs]">
 			<vm:outbound-endpoint path="statusLookup" exchange-pattern="request-response" />
 		</enricher>
-        <log-component/> 
+		<log-component/> 
 		<!-- only process through component if statusIs == 'GOOD' -->
 		<message-property-filter pattern="statusIs=GOOD"/>
 		<component class="com.ab.mvnmuleproject.MsgService"/>
@@ -73,7 +73,7 @@
 
     <flow name="main">
 		<stdio:inbound-endpoint system="IN" exchange-pattern="one-way"/>
-        <log-component/> 
+		<log-component/> 
 		<transformer ref="jsonToMsg"/>
 		<component class="com.ab.mvnmuleproject.MsgService" />
 		<transformer ref="MsgToJson"/>
